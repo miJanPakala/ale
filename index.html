@@ -1,107 +1,101 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>Quest 2 Google VR Panel</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <style>
-      body { margin: 0; overflow: hidden; background: black; }
-      #enterVR {
-        position: absolute;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        padding: 10px 20px;
-        font-size: 1.2rem;
-        background: #7f00ff;
-        color: white;
-        border: none;
-        border-radius: 10px;
-        cursor: pointer;
-        z-index: 10;
+<head>
+<meta charset="UTF-8">
+<title>Quest 2 VR Search Panel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { margin:0; overflow:hidden; background:black; }
+  #enterVR {
+    position: absolute; top:20px; left:50%; transform:translateX(-50%);
+    padding:10px 20px; font-size:1.2rem; background:#7f00ff;
+    color:white; border:none; border-radius:10px; cursor:pointer; z-index:10;
+  }
+  iframe { display:none; } /* hidden, triggers scroll it */
+</style>
+</head>
+<body>
+<button id="enterVR">Enter VR</button>
+<iframe id="webpage" src="search.html"></iframe>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/webxr/VRButton.js"></script>
+
+<script>
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 100);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.xr.enabled = true;
+document.body.appendChild(renderer.domElement);
+document.body.appendChild(VRButton.createButton(renderer));
+
+// Background
+const bgGeo = new THREE.SphereGeometry(50,32,32);
+const bgMat = new THREE.MeshBasicMaterial({color:0x220044, side:THREE.BackSide});
+scene.add(new THREE.Mesh(bgGeo, bgMat));
+
+// Canvas panel for webpage
+const canvas = document.createElement('canvas');
+canvas.width = 1024; canvas.height = 512;
+const ctx = canvas.getContext('2d');
+ctx.fillStyle = "#ffffff"; ctx.fillRect(0,0,canvas.width,canvas.height);
+ctx.fillStyle="#000000"; ctx.font="48px monospace";
+ctx.fillText("Loading search page...",50,100);
+
+const texture = new THREE.CanvasTexture(canvas);
+const panelGeo = new THREE.PlaneGeometry(1.6,0.9);
+const panelMat = new THREE.MeshBasicMaterial({map:texture});
+const panel = new THREE.Mesh(panelGeo,panelMat);
+panel.position.z=-2;
+scene.add(panel);
+
+// Hidden iframe
+const iframe = document.getElementById("webpage");
+const iframeWin = iframe.contentWindow;
+
+// Poll iframe and draw a placeholder (CORS safe)
+function updateCanvas(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle="#ffffff"; ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle="#000000"; ctx.font="36px monospace";
+  ctx.fillText("Search page panel",50,50);
+  texture.needsUpdate=true;
+  requestAnimationFrame(updateCanvas);
+}
+updateCanvas();
+
+// Trigger scrolling
+function scrollIframe(dir){
+  try { iframeWin.scrollBy({top:dir==="down"?200:-200, behavior:"smooth"}); }
+  catch(e){ console.log("Scroll failed (CORS)",e); }
+}
+
+// Controller input
+function handleControllers(){
+  const session = renderer.xr.getSession();
+  if(session){
+    session.inputSources.forEach(input=>{
+      if(input.gamepad){
+        const left = input.handedness==="left";
+        const right = input.handedness==="right";
+        if(left && input.gamepad.buttons[0].pressed) scrollIframe("up");
+        if(right && input.gamepad.buttons[0].pressed) scrollIframe("down");
       }
-      iframe {
-        display: none; /* hidden, but we scroll it from JS */
-      }
-    </style>
-  </head>
-  <body>
-    <button id="enterVR">Enter VR</button>
-    <iframe id="google" src="https://www.google.com/webhp?igu=1"></iframe>
+    });
+  }
+  requestAnimationFrame(handleControllers);
+}
+handleControllers();
 
-    <script src="https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/webxr/VRButton.js"></script>
+// Render loop
+renderer.setAnimationLoop(()=>renderer.render(scene,camera));
 
-    <script>
-      // Setup
-      const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
-      const renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.xr.enabled = true;
-      document.body.appendChild(renderer.domElement);
-
-      // Add VR button
-      document.body.appendChild(VRButton.createButton(renderer));
-
-      // Lighting
-      const light = new THREE.PointLight(0xffffff, 2);
-      light.position.set(0, 2, 2);
-      scene.add(light);
-
-      // Add a “panel” to represent Google
-      const planeGeometry = new THREE.PlaneGeometry(1.6, 0.9);
-      const planeMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-      const panel = new THREE.Mesh(planeGeometry, planeMaterial);
-      panel.position.z = -2;
-      scene.add(panel);
-
-      // Background “galaxy” sphere
-      const starGeo = new THREE.SphereGeometry(50, 32, 32);
-      const starMat = new THREE.MeshBasicMaterial({ color: 0x220044, side: THREE.BackSide });
-      const stars = new THREE.Mesh(starGeo, starMat);
-      scene.add(stars);
-
-      // For detecting input
-      let leftPressed = false;
-      let rightPressed = false;
-      const googleFrame = document.getElementById("google");
-
-      // Scroll iframe content
-      function scrollGoogle(direction) {
-        try {
-          googleFrame.contentWindow.scrollBy({
-            top: direction === "down" ? 200 : -200,
-            behavior: "smooth"
-          });
-        } catch (e) {
-          console.log("Scroll failed (iframe restricted):", e);
-        }
-      }
-
-      renderer.setAnimationLoop(() => {
-        stars.rotation.y += 0.0005; // subtle background motion
-        renderer.render(scene, camera);
-      });
-
-      // Input
-      renderer.xr.addEventListener("sessionstart", (ev) => {
-        console.log("VR session started!");
-      });
-
-      renderer.xr.addEventListener("sessionend", (ev) => {
-        console.log("VR session ended.");
-      });
-
-      renderer.xr.getSession()?.addEventListener("selectstart", (ev) => {
-        if (ev.inputSource.handedness === "left") {
-          leftPressed = true;
-          scrollGoogle("up");
-        } else if (ev.inputSource.handedness === "right") {
-          rightPressed = true;
-          scrollGoogle("down");
-        }
-      });
-    </script>
-  </body>
+// Enter VR
+document.getElementById("enterVR").addEventListener("click", async()=>{
+  const session = await navigator.xr.requestSession("immersive-vr");
+  renderer.xr.setSession(session);
+});
+</script>
+</body>
 </html>
