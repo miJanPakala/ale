@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>My Search Engine</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="style.css">
+<style>
+body { font-family:sans-serif; margin:2rem; background:#fff; color:#000; }
+input[type=text]{width:80%;padding:0.5rem;font-size:1.2rem;}
+button{padding:0.5rem 1rem; font-size:1rem;}
+</style>
+</head>
+<body>
+<h1>My Search Engine</h1>
+<form id="searchForm">
+  <input type="text" placeholder="Type something..." id="query">
+  <button type="submit">Search</button>
+</form>
+<div id="results" style="margin-top:2rem;"></div>
+
+<script>
+document.getElementById("searchForm").addEventListener("submit", e=>{
+  e.preventDefault();
+  const q = document.getElementById("query").value;
+  const resultsDiv = document.getElementById("results");
+  resultsDiv.innerHTML = `<p>You searched for: <strong>${q}</strong></p>
+  <p>Fake results:</p>
+  <ul>
+    <li>Result 1 for ${q}</li>
+    <li>Result 2 for ${q}</li>
+    <li>Result 3 for ${q}</li>
+  </ul>`;
+});
+</script>
+</body>
+</html>
